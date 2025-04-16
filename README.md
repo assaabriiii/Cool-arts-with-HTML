@@ -23,11 +23,11 @@ An abstract fractal pattern that evolves over time, demonstrating recursive draw
 A mesmerizing fractal tree that grows and rotates, showcasing advanced animation techniques.
 
 ## 6th.html
-![6th Animation](6.png)
+![6th Animation](6th.png)
 A mesmerizing fractal tree that grows and rotates, showcasing advanced animation techniques.
 
 ## 7th.html
-![7th Animation](7.png)
+![7th Animation](7th.png)
 A cool alien attack which change with mouse clicks and movements
 
 Each HTML file can be opened in any modern web browser to view the live animations. The GIFs provide a preview of the visual effects implemented in each file.
