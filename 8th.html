@@ -1,0 +1,673 @@
+<html>
+    <head>
+        <style>
+            body { margin: 0; background: black; overflow: hidden; }
+            canvas { display: block; }
+            #warning {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                color: #ff0000;
+                font-family: monospace;
+                font-size: 14px;
+                opacity: 0.7;
+                text-shadow: 0 0 5px #ff0000;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="warning">WARNING: PARANORMAL ACTIVITY DETECTED</div>
+        <canvas id="c" width="1024" height="1024"></canvas>
+        <script>
+            const canvas = document.getElementById('c');
+            const context = canvas.getContext('2d');
+            let time = 0;
+            
+            // Resize canvas to window size
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Mouse interaction variables
+            let mouseX = canvas.width / 2;
+            let mouseY = canvas.height / 2;
+            let isClicked = false;
+            let clickEffects = [];
+            let ghosts = [];
+            let bloodSplatters = [];
+            let shadows = [];
+            
+            // Audio setup for scary sounds
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create a scary sound
+            function createScarySound(type) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                if (type === 'whisper') {
+                    // Whisper sound
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(200 + Math.random() * 300, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(
+                        100 + Math.random() * 200, audioContext.currentTime + 0.3
+                    );
+                    
+                    gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+                } else if (type === 'scream') {
+                    // Scream sound
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(800 + Math.random() * 400, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(
+                        200 + Math.random() * 100, audioContext.currentTime + 0.5
+                    );
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+                } else {
+                    // Creepy ambient sound
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(50 + Math.random() * 100, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(
+                        30 + Math.random() * 50, audioContext.currentTime + 1.0
+                    );
+                    
+                    gainNode.gain.setValueAtTime(0.03, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.0);
+                }
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + (type === 'ambient' ? 1.0 : 0.5));
+            }
+            
+            // Initialize ghost entities
+            function createGhosts(count) {
+                for (let i = 0; i < count; i++) {
+                    ghosts.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 40 + 30,
+                        speed: Math.random() * 0.5 + 0.2,
+                        angle: Math.random() * Math.PI * 2,
+                        pulseRate: Math.random() * 0.05 + 0.02,
+                        opacity: Math.random() * 0.3 + 0.1,
+                        hue: Math.random() * 60 + 200, // Blue to purple ghost colors
+                        aggressive: Math.random() > 0.7, // Some ghosts are more aggressive
+                        faceParts: {
+                            eyeSize: Math.random() * 0.15 + 0.05,
+                            mouthSize: Math.random() * 0.3 + 0.1,
+                            mouthType: Math.floor(Math.random() * 3) // 0: smile, 1: frown, 2: scream
+                        }
+                    });
+                }
+            }
+            
+            // Create shadow entities
+            function createShadows(count) {
+                for (let i = 0; i < count; i++) {
+                    shadows.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        width: Math.random() * 100 + 50,
+                        height: Math.random() * 200 + 100,
+                        speed: Math.random() * 0.02 + 0.01,
+                        angle: Math.random() * Math.PI * 2,
+                        opacity: Math.random() * 0.3 + 0.1,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+            
+            // Initialize entities
+            createGhosts(5);
+            createShadows(8);
+            
+            // Add mouse event listeners
+            canvas.addEventListener('mousedown', function(e) {
+                isClicked = true;
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                
+                // Create blood splatter effect
+                bloodSplatters.push({
+                    x: mouseX,
+                    y: mouseY,
+                    radius: 5,
+                    maxRadius: 50 + Math.random() * 50,
+                    droplets: [],
+                    age: 0,
+                    maxAge: 120 + Math.random() * 60,
+                    hue: 0, // Red for blood
+                    saturation: 100,
+                    lightness: 20 + Math.random() * 10
+                });
+                
+                // Create droplets for the blood splatter
+                const dropletCount = 10 + Math.floor(Math.random() * 15);
+                for (let i = 0; i < dropletCount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 0.5 + Math.random() * 2;
+                    const size = 2 + Math.random() * 5;
+                    
+                    bloodSplatters[bloodSplatters.length - 1].droplets.push({
+                        x: mouseX,
+                        y: mouseY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed + 0.5, // Add slight gravity
+                        size: size,
+                        age: 0,
+                        maxAge: 60 + Math.random() * 60
+                    });
+                }
+                
+                // Play scary sound
+                const soundType = Math.random() > 0.7 ? 'scream' : 'whisper';
+                createScarySound(soundType);
+                
+                // Spawn new ghost on click
+                if (Math.random() > 0.5) {
+                    ghosts.push({
+                        x: mouseX,
+                        y: mouseY,
+                        size: Math.random() * 50 + 40,
+                        speed: Math.random() * 0.8 + 0.4,
+                        angle: Math.random() * Math.PI * 2,
+                        pulseRate: Math.random() * 0.08 + 0.03,
+                        opacity: Math.random() * 0.5 + 0.3,
+                        hue: Math.random() * 60 + 200,
+                        aggressive: true, // Clicked ghosts are always aggressive
+                        faceParts: {
+                            eyeSize: Math.random() * 0.15 + 0.1,
+                            mouthSize: Math.random() * 0.4 + 0.2,
+                            mouthType: 2 // Scream
+                        }
+                    });
+                } else {
+                    // Create shadow figure
+                    shadows.push({
+                        x: mouseX,
+                        y: mouseY,
+                        width: Math.random() * 120 + 80,
+                        height: Math.random() * 250 + 150,
+                        speed: Math.random() * 0.03 + 0.02,
+                        angle: Math.random() * Math.PI * 2,
+                        opacity: Math.random() * 0.5 + 0.3,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
+                
+                // Occasionally make all ghosts aggressive on click
+                if (Math.random() > 0.8) {
+                    for (let i = 0; i < ghosts.length; i++) {
+                        ghosts[i].aggressive = true;
+                        ghosts[i].faceParts.mouthType = 2; // Scream
+                        ghosts[i].opacity = Math.min(ghosts[i].opacity * 1.5, 0.9);
+                    }
+                    createScarySound('scream');
+                }
+            });
+            
+            canvas.addEventListener('mouseup', function() {
+                isClicked = false;
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                
+                // Occasionally create whisper sound on mouse move
+                if (Math.random() < 0.005) {
+                    createScarySound('whisper');
+                }
+            });
+            
+            // Draw a single ghost entity
+            function drawGhost(ghost) {
+                const pulseSize = ghost.size * (1 + Math.sin(time * ghost.pulseRate) * 0.2);
+                
+                context.save();
+                context.translate(ghost.x, ghost.y);
+                
+                // Ghost body glow
+                const gradient = context.createRadialGradient(0, 0, 0, 0, 0, pulseSize * 1.5);
+                gradient.addColorStop(0, `hsla(${ghost.hue}, 100%, 50%, ${ghost.opacity * 0.8})`);
+                gradient.addColorStop(0.7, `hsla(${ghost.hue}, 100%, 30%, ${ghost.opacity * 0.3})`);
+                gradient.addColorStop(1, `hsla(${ghost.hue}, 100%, 20%, 0)`);
+                
+                context.fillStyle = gradient;
+                context.beginPath();
+                context.arc(0, 0, pulseSize * 1.5, 0, Math.PI * 2);
+                context.fill();
+                
+                // Ghost body
+                context.fillStyle = `hsla(${ghost.hue}, 100%, 95%, ${ghost.opacity})`;                
+                context.beginPath();
+                
+                // Ghost head (circle)
+                context.arc(0, 0, pulseSize * 0.5, 0, Math.PI * 2);
+                
+                // Ghost bottom (wavy)
+                const waveAmplitude = pulseSize * 0.1;
+                const segments = 10;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const angle = Math.PI + (Math.PI / segments) * i;
+                    const waveOffset = Math.sin(angle * 3 + time * 2) * waveAmplitude;
+                    const x = Math.cos(angle) * (pulseSize * 0.5 + waveOffset);
+                    const y = Math.sin(angle) * (pulseSize * 0.7 + waveOffset) + pulseSize * 0.3;
+                    
+                    if (i === 0) {
+                        context.lineTo(x, y);
+                    } else {
+                        context.lineTo(x, y);
+                    }
+                }
+                
+                context.fill();
+                
+                // Draw ghost face
+                // Eyes
+                const eyeSize = pulseSize * ghost.faceParts.eyeSize;
+                const eyeDistance = pulseSize * 0.2;
+                
+                // Left eye
+                context.fillStyle = 'black';
+                context.beginPath();
+                context.arc(-eyeDistance, -eyeDistance * 0.5, eyeSize, 0, Math.PI * 2);
+                context.fill();
+                
+                // Right eye
+                context.beginPath();
+                context.arc(eyeDistance, -eyeDistance * 0.5, eyeSize, 0, Math.PI * 2);
+                context.fill();
+                
+                // Mouth based on type
+                context.strokeStyle = 'black';
+                context.lineWidth = pulseSize * 0.05;
+                context.beginPath();
+                
+                const mouthWidth = pulseSize * ghost.faceParts.mouthSize;
+                const mouthHeight = pulseSize * ghost.faceParts.mouthSize * 0.5;
+                
+                if (ghost.faceParts.mouthType === 0) { // Smile
+                    context.arc(0, eyeDistance * 0.5, mouthWidth * 0.5, 0, Math.PI);
+                } else if (ghost.faceParts.mouthType === 1) { // Frown
+                    context.arc(0, eyeDistance, mouthWidth * 0.5, Math.PI, Math.PI * 2);
+                } else { // Scream
+                    context.arc(0, eyeDistance * 0.5, mouthHeight, 0, Math.PI * 2);
+                }
+                
+                context.stroke();
+                
+                // Add dripping effect for aggressive ghosts
+                if (ghost.aggressive) {
+                    context.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                    
+                    for (let i = 0; i < 5; i++) {
+                        const drip = {
+                            x: (Math.random() - 0.5) * pulseSize * 0.8,
+                            length: Math.random() * pulseSize * 0.5 + pulseSize * 0.2,
+                            width: Math.random() * pulseSize * 0.1 + pulseSize * 0.05
+                        };
+                        
+                        context.beginPath();
+                        context.ellipse(
+                            drip.x, pulseSize * 0.5,
+                            drip.width, drip.length,
+                            0, 0, Math.PI * 2
+                        );
+                        context.fill();
+                    }
+                }
+                
+                context.restore();
+            }
+            
+            // Draw a shadow figure
+            function drawShadow(shadow) {
+                context.save();
+                
+                // Shadow body
+                const gradient = context.createRadialGradient(
+                    shadow.x, shadow.y, 0,
+                    shadow.x, shadow.y, Math.max(shadow.width, shadow.height)
+                );
+                
+                gradient.addColorStop(0, `rgba(0, 0, 0, ${shadow.opacity})`);
+                gradient.addColorStop(0.7, `rgba(0, 0, 0, ${shadow.opacity * 0.5})`);
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                context.fillStyle = gradient;
+                
+                // Draw distorted humanoid shape
+                context.beginPath();
+                
+                // Head
+                const headSize = shadow.width * 0.3;
+                context.arc(shadow.x, shadow.y - shadow.height * 0.4, headSize, 0, Math.PI * 2);
+                
+                // Body
+                context.moveTo(shadow.x - shadow.width * 0.3, shadow.y - shadow.height * 0.3);
+                context.lineTo(shadow.x + shadow.width * 0.3, shadow.y - shadow.height * 0.3);
+                context.lineTo(shadow.x + shadow.width * 0.2, shadow.y + shadow.height * 0.4);
+                context.lineTo(shadow.x - shadow.width * 0.2, shadow.y + shadow.height * 0.4);
+                context.closePath();
+                
+                context.fill();
+                
+                // Arms
+                context.beginPath();
+                const armLength = shadow.height * 0.4;
+                const armWidth = shadow.width * 0.1;
+                
+                // Left arm
+                const leftArmAngle = Math.PI * 0.7 + Math.sin(time + shadow.phase) * 0.2;
+                const leftArmX = shadow.x - shadow.width * 0.3;
+                const leftArmY = shadow.y - shadow.height * 0.2;
+                const leftHandX = leftArmX + Math.cos(leftArmAngle) * armLength;
+                const leftHandY = leftArmY + Math.sin(leftArmAngle) * armLength;
+                
+                context.moveTo(leftArmX, leftArmY);
+                context.lineTo(leftHandX, leftHandY);
+                
+                // Right arm
+                const rightArmAngle = Math.PI * 0.3 - Math.sin(time + shadow.phase + Math.PI) * 0.2;
+                const rightArmX = shadow.x + shadow.width * 0.3;
+                const rightArmY = shadow.y - shadow.height * 0.2;
+                const rightHandX = rightArmX + Math.cos(rightArmAngle) * armLength;
+                const rightHandY = rightArmY + Math.sin(rightArmAngle) * armLength;
+                
+                context.moveTo(rightArmX, rightArmY);
+                context.lineTo(rightHandX, rightHandY);
+                
+                context.lineWidth = armWidth;
+                context.strokeStyle = `rgba(0, 0, 0, ${shadow.opacity})`;
+                context.stroke();
+                
+                // Legs
+                context.beginPath();
+                const legLength = shadow.height * 0.3;
+                const legWidth = shadow.width * 0.1;
+                
+                // Left leg
+                const leftLegX = shadow.x - shadow.width * 0.1;
+                const leftLegY = shadow.y + shadow.height * 0.4;
+                const leftFootX = leftLegX - Math.sin(time * 0.5 + shadow.phase) * legLength * 0.3;
+                const leftFootY = leftLegY + legLength;
+                
+                context.moveTo(leftLegX, leftLegY);
+                context.lineTo(leftFootX, leftFootY);
+                
+                // Right leg
+                const rightLegX = shadow.x + shadow.width * 0.1;
+                const rightLegY = shadow.y + shadow.height * 0.4;
+                const rightFootX = rightLegX + Math.sin(time * 0.5 + shadow.phase + Math.PI) * legLength * 0.3;
+                const rightFootY = rightLegY + legLength;
+                
+                context.moveTo(rightLegX, rightLegY);
+                context.lineTo(rightFootX, rightFootY);
+                
+                context.lineWidth = legWidth;
+                context.strokeStyle = `rgba(0, 0, 0, ${shadow.opacity})`;
+                context.stroke();
+                
+                // Red glowing eyes
+                const eyeSize = headSize * 0.2;
+                const eyeDistance = headSize * 0.3;
+                const eyeY = shadow.y - shadow.height * 0.4 - headSize * 0.1;
+                
+                // Eye glow
+                const eyeGlow = context.createRadialGradient(
+                    shadow.x, eyeY, 0,
+                    shadow.x, eyeY, eyeDistance + eyeSize
+                );
+                
+                eyeGlow.addColorStop(0, `rgba(255, 0, 0, ${shadow.opacity})`);
+                eyeGlow.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                
+                context.fillStyle = eyeGlow;
+                context.beginPath();
+                context.arc(shadow.x, eyeY, eyeDistance + eyeSize, 0, Math.PI * 2);
+                context.fill();
+                
+                // Left eye
+                context.fillStyle = `rgba(255, 0, 0, ${shadow.opacity * 1.5})`;
+                context.beginPath();
+                context.arc(shadow.x - eyeDistance, eyeY, eyeSize, 0, Math.PI * 2);
+                context.fill();
+                
+                // Right eye
+                context.beginPath();
+                context.arc(shadow.x + eyeDistance, eyeY, eyeSize, 0, Math.PI * 2);
+                context.fill();
+                
+                context.restore();
+            }
+            
+            // Draw blood splatter effect
+            function drawBloodSplatter(splatter) {
+                const progress = splatter.age / splatter.maxAge;
+                
+                // Draw main splatter
+                const radius = splatter.radius + (splatter.maxRadius - splatter.radius) * Math.sqrt(progress);
+                
+                // Blood pool
+                const gradient = context.createRadialGradient(
+                    splatter.x, splatter.y, radius * 0.2,
+                    splatter.x, splatter.y, radius
+                );
+                
+                gradient.addColorStop(0, `hsla(${splatter.hue}, ${splatter.saturation}%, ${splatter.lightness}%, ${1 - progress * 0.5})`);
+                gradient.addColorStop(0.7, `hsla(${splatter.hue}, ${splatter.saturation}%, ${splatter.lightness - 10}%, ${(1 - progress) * 0.7})`);
+                gradient.addColorStop(1, `hsla(${splatter.hue}, ${splatter.saturation}%, ${splatter.lightness - 20}%, 0)`);
+                
+                context.fillStyle = gradient;
+                
+                // Create irregular blood pool shape
+                context.beginPath();
+                const points = 8;
+                for (let i = 0; i < points; i++) {
+                    const angle = (Math.PI * 2 / points) * i;
+                    const radiusVariation = radius * (0.7 + Math.sin(angle * 5 + time) * 0.3);
+                    const x = splatter.x + Math.cos(angle) * radiusVariation;
+                    const y = splatter.y + Math.sin(angle) * radiusVariation;
+                    
+                    if (i === 0) {
+                        context.moveTo(x, y);
+                    } else {
+                        context.lineTo(x, y);
+                    }
+                }
+                context.closePath();
+                context.fill();
+                
+                // Draw blood droplets
+                context.fillStyle = `hsla(${splatter.hue}, ${splatter.saturation}%, ${splatter.lightness}%, ${1 - progress * 0.7})`;
+                
+                for (let i = 0; i < splatter.droplets.length; i++) {
+                    const droplet = splatter.droplets[i];
+                    const dropletProgress = droplet.age / droplet.maxAge;
+                    
+                    if (dropletProgress < 1) {
+                        // Update droplet position with gravity
+                        droplet.x += droplet.vx;
+                        droplet.y += droplet.vy;
+                        droplet.vy += 0.05; // Gravity
+                        droplet.age++;
+                        
+                        // Draw droplet
+                        context.beginPath();
+                        context.arc(
+                            droplet.x, 
+                            droplet.y, 
+                            droplet.size * (1 - dropletProgress * 0.5), 
+                            0, Math.PI * 2
+                        );
+                        context.fill();
+                        
+                        // Draw drip trail
+                        if (droplet.vy > 1 && Math.random() > 0.7) {
+                            context.beginPath();
+                            context.moveTo(droplet.x, droplet.y);
+                            context.lineTo(droplet.x - droplet.vx * 2, droplet.y - droplet.vy * 2);
+                            context.lineWidth = droplet.size * 0.5;
+                            context.strokeStyle = `hsla(${splatter.hue}, ${splatter.saturation}%, ${splatter.lightness}%, ${(1 - dropletProgress) * 0.5})`;
+                            context.stroke();
+                        }
+                    }
+                }
+            }
+            
+            // Update warning text
+            function updateWarning() {
+                const warning = document.getElementById('warning');
+                warning.style.opacity = 0.5 + Math.sin(time * 2) * 0.5;
+                warning.style.textShadow = `0 0 ${5 + Math.sin(time * 3) * 3}px #ff0000`;
+                
+                // Occasionally change warning text
+                if (Math.random() < 0.005) {
+                    const warnings = [
+                        "WARNING: PARANORMAL ACTIVITY DETECTED",
+                        "DANGER: HOSTILE SPIRITS PRESENT",
+                        "ALERT: SUPERNATURAL ENTITIES APPROACHING",
+                        "CAUTION: DIMENSIONAL BREACH",
+                        "WARNING: MALEVOLENT PRESENCE",
+                        "RUN"
+                    ];
+                    warning.textContent = warnings[Math.floor(Math.random() * warnings.length)];
+                    
+                    // Flash screen red for the "RUN" warning
+                    if (warning.textContent === "RUN") {
+                        context.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                        context.fillRect(0, 0, canvas.width, canvas.height);
+                        createScarySound('scream');
+                    }
+                }
+            }
+            
+            function animate() {
+                time += 0.01;
+                context.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Update warning text
+                updateWarning();
+                
+                // Occasionally create ambient sound
+                if (Math.random() < 0.01) {
+                    createScarySound('ambient');
+                }
+                
+                // Process blood splatters
+                for (let i = bloodSplatters.length - 1; i >= 0; i--) {
+                    const splatter = bloodSplatters[i];
+                    splatter.age++;
+                    
+                    // Draw blood splatter
+                    drawBloodSplatter(splatter);
+                    
+                    // Remove old splatters
+                    if (splatter.age >= splatter.maxAge) {
+                        bloodSplatters.splice(i, 1);
+                    }
+                }
+                
+                // Update and draw ghosts
+                for (let i = 0; i < ghosts.length; i++) {
+                    const ghost = ghosts[i];
+                    
+                    // Move ghost
+                    if (ghost.aggressive) {
+                        // Aggressive ghosts move toward mouse
+                        const dx = mouseX - ghost.x;
+                        const dy = mouseY - ghost.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist > 10) {
+                            ghost.x += (dx / dist) * ghost.speed;
+                            ghost.y += (dy / dist) * ghost.speed;
+                        }
+                        
+                        // Occasionally make ghost scream
+                        if (Math.random() < 0.001) {
+                            createScarySound('scream');
+                        }
+                    } else {
+                        // Normal ghosts move in patterns
+                        ghost.x += Math.cos(ghost.angle) * ghost.speed;
+                        ghost.y += Math.sin(ghost.angle) * ghost.speed;
+                        
+                        // Occasionally change direction
+                        if (Math.random() < 0.01) {
+                            ghost.angle += (Math.random() - 0.5) * Math.PI / 2;
+                        }
+                    }
+                    
+                    // Keep ghosts on screen
+                    if (ghost.x < -ghost.size) ghost.x = canvas.width + ghost.size;
+                    if (ghost.x > canvas.width + ghost.size) ghost.x = -ghost.size;
+                    if (ghost.y < -ghost.size) ghost.y = canvas.height + ghost.size;
+                    if (ghost.y > canvas.height + ghost.size) ghost.y = -ghost.size;
+                    
+                    // Draw ghost
+                    drawGhost(ghost);
+                }
+                
+                // Update and draw shadows
+                for (let i = 0; i < shadows.length; i++) {
+                    const shadow = shadows[i];
+                    
+                    // Move shadow slowly
+                    shadow.x += Math.cos(shadow.angle) * shadow.speed;
+                    shadow.y += Math.sin(shadow.angle) * shadow.speed;
+                    
+                    // Occasionally change direction
+                    if (Math.random() < 0.005) {
+                        shadow.angle += (Math.random() - 0.5) * Math.PI / 4;
+                    }
+                    
+                    // Keep shadows on screen
+                    if (shadow.x < -shadow.width) shadow.x = canvas.width + shadow.width;
+                    if (shadow.x > canvas.width + shadow.width) shadow.x = -shadow.width;
+                    if (shadow.y < -shadow.height) shadow.y = canvas.height + shadow.height;
+                    if (shadow.y > canvas.height + shadow.height) shadow.y = -shadow.height;
+                    
+                    // Draw shadow
+                    drawShadow(shadow);
+                }
+                
+                // Draw eerie background effects
+                for (let i = 0; i < 3; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    const size = Math.random() * 2 + 1;
+                    
+                    context.fillStyle = `hsla(${200 + Math.random() * 60}, 100%, 70%, ${Math.random() * 0.2})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                // Occasionally create random flicker effect
+                if (Math.random() < 0.01) {
+                    context.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.05})`;
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        </script>
+    </body>
+</html> ghost
+                    drawGhost(ghost)
