@@ -34,4 +34,20 @@ A cool alien attack which change with mouse clicks and movements
 ![8th Animation](8th.png)
 A cool alien attack which change with mouse clicks and movements, with blood splatter
 
+## 9th.html
+![9th Animation](9th.png)
+A cool alien attack which change with mouse clicks and movements, with jump scares
+
+## 10th.html
+![10th Animation](10th.png)
+Some circles doing some i don't know thing stuffs
+
+## 11th.html
+![11th Animation](11th.png)
+A thunder storm effect
+
+## 12th.html
+![12th Animation](12th.png)
+Matrix shits
+
 Each HTML file can be opened in any modern web browser to view the live animations. The GIFs provide a preview of the visual effects implemented in each file.

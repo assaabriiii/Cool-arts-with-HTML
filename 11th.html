@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thunder Scene</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; cursor: crosshair; }
+        canvas { display: block; }
+        #warning {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: #ffcc00;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            opacity: 0.8;
+            text-shadow: 0 0 5px #ffcc00;
+            display: none; /* Hidden by default */
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="warning">WARNING: SEVERE ELECTRICAL STORM</div>
+    <canvas id="c"></canvas>
+    <!-- Using multiple audio elements for potential overlap -->
+    <audio id="thunder-sound-1" src="https://cdn.pixabay.com/audio/2022/03/15/audio_1d5f117d7c.mp3" preload="auto"></audio>
+    <audio id="thunder-sound-2" src="https://cdn.pixabay.com/audio/2021/08/04/audio_12b0c453b9.mp3" preload="auto"></audio>
+    <audio id="scary-voice-1" src="https://cdn.pixabay.com/audio/2023/09/21/audio_1a8079164b.mp3" preload="auto"></audio>
+    <audio id="scary-voice-2" src="https://cdn.pixabay.com/audio/2022/11/17/audio_1e8a4a4c1f.mp3" preload="auto"></audio>
+    <audio id="rain-sound" src="https://cdn.pixabay.com/audio/2022/11/11/audio_a21bce6a8b.mp3" loop preload="auto"></audio>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const context = canvas.getContext('2d');
+        const warningDiv = document.getElementById('warning');
+        let time = 0;
+        let mouseX = window.innerWidth / 2;
+        let mouseY = 0; // Start lightning from top
+        let isClicked = false;
+
+        const thunderSounds = [document.getElementById('thunder-sound-1'), document.getElementById('thunder-sound-2')];
+        const scaryVoices = [document.getElementById('scary-voice-1'), document.getElementById('scary-voice-2')];
+        const rainSound = document.getElementById('rain-sound');
+        rainSound.volume = 0.3; // Start rain quieter
+
+        let lightningBolts = [];
+        let rainParticles = [];
+        const maxRainParticles = 500;
+        let flashOpacity = 0;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // Reinitialize rain on resize
+            rainParticles = [];
+            for (let i = 0; i < maxRainParticles; i++) {
+                rainParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    length: Math.random() * 20 + 10,
+                    speed: Math.random() * 5 + 5
+                });
+            }
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- Audio Handling ---
+        function playSound(audioElement) {
+            audioElement.currentTime = 0;
+            audioElement.volume = Math.random() * 0.4 + 0.6; // Randomize volume slightly
+            audioElement.play().catch(e => console.log("Audio play failed: " + e));
+        }
+
+        function playRandomThunder() {
+            const sound = thunderSounds[Math.floor(Math.random() * thunderSounds.length)];
+            playSound(sound);
+        }
+
+        function playRandomScaryVoice() {
+            const sound = scaryVoices[Math.floor(Math.random() * scaryVoices.length)];
+            playSound(sound);
+        }
+
+        // --- Lightning Bolt --- 
+        function createLightning(startX, startY, endX, endY, segments = 5, intensity = 1) {
+            let points = [{ x: startX, y: startY }];
+            let currentX = startX;
+            let currentY = startY;
+            const dx = (endX - startX) / segments;
+            const dy = (endY - startY) / segments;
+            const maxOffset = canvas.height / 15 * intensity;
+
+            for (let i = 1; i < segments; i++) {
+                currentX += dx;
+                currentY += dy;
+                points.push({
+                    x: currentX + (Math.random() - 0.5) * maxOffset,
+                    y: currentY + (Math.random() - 0.5) * maxOffset / 2 // Less vertical jitter
+                });
+            }
+            points.push({ x: endX, y: endY });
+
+            lightningBolts.push({
+                points: points,
+                opacity: 1.0 * intensity,
+                width: 3 * intensity,
+                life: 15 + Math.random() * 10 // Frames to live
+            });
+
+            // Add branches
+            if (segments > 2 && Math.random() < 0.6 * intensity) {
+                const branchPointIndex = Math.floor(Math.random() * (points.length - 2)) + 1;
+                const branchPoint = points[branchPointIndex];
+                const branchEndX = branchPoint.x + (Math.random() - 0.5) * canvas.width / 3;
+                const branchEndY = branchPoint.y + Math.random() * canvas.height / 4; // Branches tend downwards
+                createLightning(branchPoint.x, branchPoint.y, branchEndX, branchEndY, Math.max(2, segments - 2), intensity * 0.6);
+            }
+        }
+
+        function drawLightning() {
+            for (let i = lightningBolts.length - 1; i >= 0; i--) {
+                const bolt = lightningBolts[i];
+                context.beginPath();
+                context.moveTo(bolt.points[0].x, bolt.points[0].y);
+                for (let j = 1; j < bolt.points.length; j++) {
+                    context.lineTo(bolt.points[j].x, bolt.points[j].y);
+                }
+                context.strokeStyle = `rgba(255, 255, 255, ${bolt.opacity})`;
+                context.lineWidth = bolt.width * (Math.random() * 0.5 + 0.5); // Flicker width
+                context.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                context.shadowBlur = 20 * bolt.opacity;
+                context.stroke();
+                context.shadowColor = 'transparent'; // Reset shadow
+                context.shadowBlur = 0;
+
+                bolt.opacity *= 0.85;
+                bolt.life--;
+                if (bolt.life <= 0) {
+                    lightningBolts.splice(i, 1);
+                }
+            }
+        }
+
+        // --- Rain --- 
+        function drawRain() {
+            context.strokeStyle = 'rgba(170, 190, 230, 0.5)';
+            context.lineWidth = 1;
+            context.beginPath();
+            for (let i = 0; i < rainParticles.length; i++) {
+                const p = rainParticles[i];
+                context.moveTo(p.x, p.y);
+                context.lineTo(p.x, p.y + p.length);
+                p.y += p.speed;
+                if (p.y > canvas.height) {
+                    p.y = -p.length;
+                    p.x = Math.random() * canvas.width;
+                }
+            }
+            context.stroke();
+        }
+
+        // --- Warning Text --- 
+        function updateWarning() {
+            if (flashOpacity > 0.5 || Math.random() < 0.005) {
+                warningDiv.style.display = 'block';
+                warningDiv.style.opacity = Math.random() * 0.5 + 0.5; // Flicker opacity
+                if (Math.random() < 0.1) { // Occasionally change text
+                    const warnings = [
+                        "WARNING: SEVERE ELECTRICAL STORM",
+                        "DANGER: HIGH VOLTAGE AREA",
+                        "SYSTEM MALFUNCTION: ATMOSPHERICS",
+                        "REALITY DISTORTION DETECTED",
+                        "CAUTION: UNSTABLE ENERGY FIELD"
+                    ];
+                    warningDiv.textContent = warnings[Math.floor(Math.random() * warnings.length)];
+                }
+            } else if (Math.random() < 0.01) {
+                warningDiv.style.display = 'none';
+            }
+        }
+
+        // --- Mouse Events --- 
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            // Subtle effect: maybe slightly increase rain intensity near cursor?
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            isClicked = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            // Trigger major lightning strike on click
+            flashOpacity = 1.0;
+            createLightning(mouseX, 0, mouseX + (Math.random() - 0.5) * 50, mouseY + Math.random() * 50, 7, 1.5);
+            createLightning(mouseX + (Math.random() - 0.5) * 200, 0, mouseX + (Math.random() - 0.5) * 100, canvas.height * (0.6 + Math.random() * 0.4), 6, 1.2);
+            playRandomThunder();
+            if (Math.random() < 0.3) { // Chance for scary voice on click
+                playRandomScaryVoice();
+            }
+            // Start rain sound if not already playing
+            if (rainSound.paused) {
+                rainSound.play().catch(e => console.log("Rain audio play failed: " + e));
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isClicked = false;
+        });
+
+        // --- Animation Loop ---
+        function animate() {
+            time += 0.016; // Approximately 60fps
+            
+            // Background (dark sky with flash effect)
+            context.fillStyle = `rgba(0, 0, 0, ${0.2 + flashOpacity * 0.5})`; // Darker during flash
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Sky Gradient (subtle)
+            const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height * 0.6);
+            skyGradient.addColorStop(0, `rgba(10, 10, 30, ${0.5 + flashOpacity * 0.3})`);
+            skyGradient.addColorStop(1, `rgba(20, 20, 50, ${0.8 + flashOpacity * 0.2})`);
+            context.fillStyle = skyGradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update flash effect
+            if (flashOpacity > 0) {
+                context.fillStyle = `rgba(200, 200, 255, ${flashOpacity * 0.8})`;
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                flashOpacity *= 0.85; // Fade out flash
+                if (flashOpacity < 0.01) flashOpacity = 0;
+            }
+
+            // Random ambient lightning
+            if (Math.random() < 0.015) {
+                const startX = Math.random() * canvas.width;
+                const endX = startX + (Math.random() - 0.5) * canvas.width / 2;
+                const endY = canvas.height * (0.5 + Math.random() * 0.5);
+                createLightning(startX, 0, endX, endY, 5 + Math.floor(Math.random() * 3), 0.8);
+                flashOpacity = Math.max(flashOpacity, 0.4 + Math.random() * 0.3);
+                if (Math.random() < 0.5) playRandomThunder(); // Play thunder sometimes with ambient lightning
+            }
+            
+            // Random far-off sheet lightning (just a flash)
+            if (Math.random() < 0.02) {
+                 flashOpacity = Math.max(flashOpacity, 0.1 + Math.random() * 0.2);
+            }
+
+            drawRain();
+            drawLightning();
+            updateWarning();
+
+            // Random scary voices
+            if (Math.random() < 0.0008) {
+                playRandomScaryVoice();
+            }
+
+            // Ensure rain sound plays after user interaction
+            if (!isClicked && rainSound.paused && rainSound.readyState >= 3) { // Check readyState
+                 // Maybe prompt user to click to enable audio if needed
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initial prompt for audio
+        function startExperience() {
+            document.removeEventListener('click', startExperience);
+            document.removeEventListener('keydown', startExperience);
+            console.log("Starting audio...");
+            rainSound.play().catch(e => console.log("Initial rain audio play failed: " + e));
+            animate();
+        }
+
+        // Need user interaction to start audio reliably
+        context.fillStyle = 'white';
+        context.font = '20px Arial';
+        context.textAlign = 'center';
+        context.fillText('Click or Press any key to start the storm', canvas.width / 2, canvas.height / 2);
+        document.addEventListener('click', startExperience);
+        document.addEventListener('keydown', startExperience);
+
+    </script>
+</body>
+</html>

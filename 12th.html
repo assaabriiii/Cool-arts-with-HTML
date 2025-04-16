@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Tear Effect</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            border: 1px solid #333;
+            background-color: #000;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+<canvas id="artCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('artCanvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = window.innerWidth * 0.9;
+    canvas.height = window.innerHeight * 0.9;
+
+    let isDragging = false;
+    let currentTearPath = [];
+    const tearPaths = [];
+
+    const MAX_TEAR_POINTS = 200;
+
+    // Matrix Effect Variables
+    const matrixChars = 'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍｦｲｸｺｿﾁﾄﾉﾌﾔﾖﾙﾚﾛﾝ';
+    const fontSize = 32;
+    const columns = Math.floor(canvas.width / fontSize);
+    const dropsPerColumn = 20;
+    const drops = [];
+    for (let i = 0; i < columns; i++) {
+        drops[i] = [];
+        for (let j = 0; j < dropsPerColumn; j++) {
+            drops[i].push(Math.random() * canvas.height / fontSize);
+        }
+    }
+
+    // Event Listeners
+    canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        currentTearPath = [];
+        const rect = canvas.getBoundingClientRect();
+        currentTearPath.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        currentTearPath.push({ x: mouseX, y: mouseY });
+        if (currentTearPath.length > MAX_TEAR_POINTS) {
+            currentTearPath.shift();
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDragging = false;
+        if (currentTearPath.length > 1) {
+            tearPaths.push([...currentTearPath]);
+        }
+        currentTearPath = [];
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+    });
+
+    function drawMatrix() {
+        ctx.fillStyle = '#00008B';
+        // 1A1110
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#0F0';
+        ctx.font = fontSize + 'px monospace';
+        ctx.shadowColor = '#0F0';
+        ctx.shadowBlur = 5;
+
+        for (let i = 0; i < drops.length; i++) {
+            for (let j = 0; j < drops[i].length; j++) {
+                const text = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+                ctx.fillText(text, i * fontSize, drops[i][j] * fontSize);
+                drops[i][j] += 0.2;
+                if (drops[i][j] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i][j] = 0;
+                }
+            }
+        }
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+    }
+
+    function applyTears() {
+        ctx.save();
+        ctx.beginPath();
+
+        // Draw all previous tear paths
+        for (const path of tearPaths) {
+            if (path.length < 2) continue;
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) {
+                const jaggedX = path[i].x + (Math.random() - 0.5) * 10;
+                const jaggedY = path[i].y + (Math.random() - 0.5) * 10;
+                ctx.lineTo(jaggedX, jaggedY);
+            }
+        }
+
+        // Draw current path if dragging
+        if (currentTearPath.length > 1) {
+            ctx.moveTo(currentTearPath[0].x, currentTearPath[0].y);
+            for (let i = 1; i < currentTearPath.length; i++) {
+                const jaggedX = currentTearPath[i].x + (Math.random() - 0.5) * 10;
+                const jaggedY = currentTearPath[i].y + (Math.random() - 0.5) * 10;
+                ctx.lineTo(jaggedX, jaggedY);
+            }
+        }
+
+        ctx.lineWidth = 40;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.clip();
+
+        drawMatrix(); // Only draw matrix where tears are revealed
+
+        ctx.restore();
+    }
+
+    function animate() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        applyTears();
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>
