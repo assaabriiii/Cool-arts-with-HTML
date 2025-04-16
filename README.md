@@ -1,16 +1,16 @@
 # Cool Arts with JS
 
-This project contains a series of animated canvas art pieces created using JavaScript. Each HTML file showcases a unique visual effect, and corresponding GIFs are provided to demonstrate the animations.
+Just made some graphic gestures using html canvas and mathematics formulas.
 
-## 1st.html
+## 1st.html from: `((x ^ y) % (9 + Math.floor(Math.sin(time) * 3)))`
 ![1st Animation](1.png)
 This animation features a grid of pulsating squares with shifting colors, creating a hypnotic wave-like effect.
 
-## 2nd.html
+## 2nd.html from: `((x ^ y) % (5 + Math.floor(wave)))`
 ![2nd Animation](2.png)
 This piece demonstrates a complex pattern of intersecting lines that morph and shift in response to mathematical functions.
 
-## 3rd.html
+## 3rd.html from: `(x + y + Math.floor(time * 4)) % 3;`
 ![3rd Animation](3.png)
 A dynamic color field that responds to circular motion, creating a swirling, kaleidoscope-like effect.
 
