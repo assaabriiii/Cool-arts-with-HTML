@@ -30,4 +30,8 @@ A mesmerizing fractal tree that grows and rotates, showcasing advanced animation
 ![7th Animation](7th.png)
 A cool alien attack which change with mouse clicks and movements
 
+## 8th.html
+![8th Animation](8th.png)
+A cool alien attack which change with mouse clicks and movements, with blood splatter
+
 Each HTML file can be opened in any modern web browser to view the live animations. The GIFs provide a preview of the visual effects implemented in each file.
