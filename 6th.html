@@ -1,0 +1,309 @@
+<html>
+    <head>
+        <style>
+            body { margin: 0; background: black; }
+            canvas { display: block; }
+        </style>
+    </head>
+    <body>
+        <canvas id="c" width="1024" height="1024"></canvas>
+        <script>
+            const canvas = document.getElementById('c');
+            const context = canvas.getContext('2d');
+            let time = 0;
+            
+            // Grid settings
+            const cellSize = 8;
+            const cols = Math.floor(canvas.width / cellSize);
+            const rows = Math.floor(canvas.height / cellSize);
+            
+            // Create grid arrays
+            let grid = [];
+            let nextGrid = [];
+            
+            // Mouse interaction variables
+            let mouseX = canvas.width / 2;
+            let mouseY = canvas.height / 2;
+            let isClicked = false;
+            let brushSize = 5;
+            let brushMode = 0; // 0: random, 1: alive, 2: dead, 3: glider, 4: oscillator
+            
+            // Pattern templates
+            const patterns = {
+                glider: [
+                    [0, 1, 0],
+                    [0, 0, 1],
+                    [1, 1, 1]
+                ],
+                oscillator: [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0]
+                ]
+            };
+            
+            // Initialize grid with random values
+            function initializeGrid() {
+                grid = [];
+                nextGrid = [];
+                
+                for (let i = 0; i < cols; i++) {
+                    grid[i] = [];
+                    nextGrid[i] = [];
+                    for (let j = 0; j < rows; j++) {
+                        // Start with mostly empty grid with some random cells
+                        grid[i][j] = Math.random() < 0.1 ? 1 : 0;
+                        nextGrid[i][j] = 0;
+                    }
+                }
+            }
+            
+            // Apply pattern at position
+            function applyPattern(x, y, pattern) {
+                const halfSize = Math.floor(pattern.length / 2);
+                
+                for (let i = 0; i < pattern.length; i++) {
+                    for (let j = 0; j < pattern[i].length; j++) {
+                        const gridX = (x + i - halfSize + cols) % cols;
+                        const gridY = (y + j - halfSize + rows) % rows;
+                        grid[gridX][gridY] = pattern[i][j];
+                    }
+                }
+            }
+            
+            // Calculate next generation based on rules
+            function updateGrid() {
+                for (let i = 0; i < cols; i++) {
+                    for (let j = 0; j < rows; j++) {
+                        // Count live neighbors (using toroidal grid)
+                        let neighbors = 0;
+                        for (let di = -1; di <= 1; di++) {
+                            for (let dj = -1; dj <= 1; dj++) {
+                                if (di === 0 && dj === 0) continue; // Skip self
+                                
+                                const ni = (i + di + cols) % cols;
+                                const nj = (j + dj + rows) % rows;
+                                neighbors += grid[ni][nj];
+                            }
+                        }
+                        
+                        // Apply rules (Conway's Game of Life with modifications)
+                        const currentState = grid[i][j];
+                        let nextState = 0;
+                        
+                        if (currentState === 1) {
+                            // Cell is alive
+                            if (neighbors < 2 || neighbors > 3) {
+                                nextState = 0; // Dies from loneliness or overcrowding
+                            } else {
+                                nextState = 1; // Survives
+                            }
+                        } else {
+                            // Cell is dead
+                            if (neighbors === 3) {
+                                nextState = 1; // Reproduction
+                            } else {
+                                nextState = 0; // Stays dead
+                            }
+                        }
+                        
+                        // Add some randomness based on time
+                        if (Math.random() < 0.0001 * (1 + Math.sin(time))) {
+                            nextState = 1 - nextState; // Flip state occasionally
+                        }
+                        
+                        nextGrid[i][j] = nextState;
+                    }
+                }
+                
+                // Swap grids
+                [grid, nextGrid] = [nextGrid, grid];
+            }
+            
+            // Draw the grid
+            function drawGrid() {
+                context.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                for (let i = 0; i < cols; i++) {
+                    for (let j = 0; j < rows; j++) {
+                        if (grid[i][j] === 1) {
+                            // Calculate color based on neighbors and time
+                            let neighbors = 0;
+                            for (let di = -1; di <= 1; di++) {
+                                for (let dj = -1; dj <= 1; dj++) {
+                                    if (di === 0 && dj === 0) continue;
+                                    const ni = (i + di + cols) % cols;
+                                    const nj = (j + dj + rows) % rows;
+                                    neighbors += grid[ni][nj];
+                                }
+                            }
+                            
+                            const colorIndex = (i + j + Math.floor(time * 3)) % 3;
+                            const colors = [
+                                `hsl(${270 + Math.sin(time) * 20}, 100%, ${30 + Math.sin(time * 1.2) * 10}%)`,
+                                `hsl(${0 + Math.cos(time) * 20}, 100%, ${27 + Math.cos(time * 1.2) * 10}%)`,
+                                `hsl(${290 + Math.sin(time) * 20}, 100%, ${10 + Math.sin(time * 1.2) * 5}%)`
+                            ];
+                            
+                            context.fillStyle = colors[colorIndex];
+                            
+                            // Add some visual effects based on neighbors
+                            const pulseSize = cellSize * (0.8 + 0.2 * Math.sin(time * 2 + i * j * 0.01));
+                            const offsetX = Math.sin(time + j * 0.1) * 2;
+                            const offsetY = Math.cos(time + i * 0.1) * 2;
+                            
+                            context.fillRect(
+                                i * cellSize + (cellSize - pulseSize) / 2 + offsetX,
+                                j * cellSize + (cellSize - pulseSize) / 2 + offsetY,
+                                pulseSize, pulseSize
+                            );
+                            
+                            // Draw connections between adjacent live cells
+                            if (neighbors > 1) {
+                                for (let di = -1; di <= 1; di++) {
+                                    for (let dj = -1; dj <= 1; dj++) {
+                                        if (di === 0 && dj === 0) continue;
+                                        const ni = (i + di + cols) % cols;
+                                        const nj = (j + dj + rows) % rows;
+                                        
+                                        if (grid[ni][nj] === 1) {
+                                            context.beginPath();
+                                            context.moveTo(i * cellSize + cellSize/2, j * cellSize + cellSize/2);
+                                            context.lineTo(ni * cellSize + cellSize/2, nj * cellSize + cellSize/2);
+                                            context.strokeStyle = `rgba(${150 + Math.sin(time) * 50}, ${100 + Math.cos(time) * 50}, ${200 + Math.sin(time * 0.5) * 55}, 0.2)`;
+                                            context.lineWidth = 0.5;
+                                            context.stroke();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Draw UI elements
+            function drawUI() {
+                // Draw brush preview at mouse position
+                context.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                context.lineWidth = 1;
+                context.beginPath();
+                context.arc(mouseX, mouseY, brushSize * cellSize, 0, Math.PI * 2);
+                context.stroke();
+                
+                // Draw mode indicator
+                const modeLabels = ['Random', 'Life', 'Erase', 'Glider', 'Oscillator'];
+                context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                context.font = '16px Arial';
+                context.fillText(`Mode: ${modeLabels[brushMode]}`, 20, 30);
+                context.fillText('Click to draw, press 1-5 to change modes, +/- to change brush size', 20, 60);
+            }
+            
+            // Handle mouse interactions
+            function handleMouse() {
+                if (!isClicked) return;
+                
+                // Convert mouse position to grid coordinates
+                const gridX = Math.floor(mouseX / cellSize);
+                const gridY = Math.floor(mouseY / cellSize);
+                
+                // Apply brush based on current mode
+                for (let i = -brushSize; i <= brushSize; i++) {
+                    for (let j = -brushSize; j <= brushSize; j++) {
+                        // Only affect cells within the circular brush
+                        if (i*i + j*j > brushSize*brushSize) continue;
+                        
+                        const x = (gridX + i + cols) % cols;
+                        const y = (gridY + j + rows) % rows;
+                        
+                        switch (brushMode) {
+                            case 0: // Random
+                                grid[x][y] = Math.random() < 0.5 ? 1 : 0;
+                                break;
+                            case 1: // Alive
+                                grid[x][y] = 1;
+                                break;
+                            case 2: // Dead
+                                grid[x][y] = 0;
+                                break;
+                            case 3: // Glider
+                                if (i === 0 && j === 0) {
+                                    applyPattern(x, y, patterns.glider);
+                                }
+                                break;
+                            case 4: // Oscillator
+                                if (i === 0 && j === 0) {
+                                    applyPattern(x, y, patterns.oscillator);
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+            
+            // Add mouse event listeners
+            canvas.addEventListener('mousedown', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                isClicked = true;
+                handleMouse();
+            });
+            
+            canvas.addEventListener('mouseup', function() {
+                isClicked = false;
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                if (isClicked) {
+                    handleMouse();
+                }
+            });
+            
+            // Add keyboard event listeners
+            document.addEventListener('keydown', function(e) {
+                // Change brush mode with number keys 1-5
+                if (e.key >= '1' && e.key <= '5') {
+                    brushMode = parseInt(e.key) - 1;
+                }
+                
+                // Change brush size with + and -
+                if (e.key === '+' || e.key === '=') {
+                    brushSize = Math.min(10, brushSize + 1);
+                }
+                if (e.key === '-' || e.key === '_') {
+                    brushSize = Math.max(1, brushSize - 1);
+                }
+                
+                // Reset grid with 'r'
+                if (e.key === 'r') {
+                    initializeGrid();
+                }
+            });
+            
+            function animate() {
+                time += 0.01;
+                
+                // Update grid every few frames for better performance
+                if (Math.floor(time * 10) % 2 === 0) {
+                    updateGrid();
+                }
+                
+                drawGrid();
+                drawUI();
+                
+                requestAnimationFrame(animate);
+            }
+            
+            // Initialize and start animation
+            initializeGrid();
+            animate();
+        </script>
+    </body>
+</html>
