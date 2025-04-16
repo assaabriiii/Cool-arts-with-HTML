@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <style>
+            body { margin: 0; background: black; }
+            canvas { display: block; }
+        </style>
+    </head>
+    <body>
+        <canvas id="c" width="1024" height="1024"></canvas>
+        <script>
+            const canvas = document.getElementById('c');
+            const context = canvas.getContext('2d');
+            let time = 0;
+
+            function animate() {
+                time += 0.015;
+                context.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let x = 0; x < 256; x++) {
+                    for (let y = 0; y < 256; y++) {
+                        const wave = Math.sin(x/20 + time) * Math.cos(y/20 + time) * 5;
+                        if ((x ^ y) % (5 + Math.floor(wave))) {
+                            const colorIndex = (x + y + Math.floor(time * 3)) % 3;
+                            const colors = [
+                                `hsl(${270 + Math.sin(time) * 15}, 100%, ${25 + Math.sin(time * 2) * 5}%)`,
+                                `hsl(${0 + Math.cos(time) * 15}, 100%, ${27 + Math.cos(time * 2) * 5}%)`,
+                                `hsl(${290 + Math.sin(time) * 15}, 100%, ${10 + Math.sin(time * 2) * 5}%)`
+                            ];
+                            context.fillStyle = colors[colorIndex];
+                            context.fillRect(
+                                x*4 + Math.sin(y/40 + time) * wave,
+                                y*4 + Math.cos(x/40 + time) * wave,
+                                4, 4
+                            );
+                        }
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        </script>
+    </body>
+</html>

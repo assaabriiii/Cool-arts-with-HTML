@@ -1,0 +1,41 @@
+<html>
+    <head>
+        <style>
+            body { margin: 0; background: black; }
+            canvas { display: block; }
+        </style>
+    </head>
+    <body>
+        <canvas id="c" width="1024" height="1024"></canvas>
+        <script>
+            const canvas = document.getElementById('c');
+            const context = canvas.getContext('2d');
+            let time = 0;
+
+            function animate() {
+                time += 0.02;
+                context.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let x = 0; x < 256; x++) {
+                    for (let y = 0; y < 256; y++) {
+                        const offset = Math.sin(time) * 4;
+                        if ((x ^ y) % (9 + Math.floor(Math.sin(time) * 3))) {
+                            const colorIndex = (x + y + Math.floor(time * 2)) % 3;
+                            const colors = [
+                                `hsl(${270 + Math.sin(time) * 10}, 100%, 30%)`,
+                                `hsl(${0 + Math.cos(time) * 10}, 100%, 27%)`,
+                                `hsl(${290 + Math.sin(time) * 10}, 100%, 10%)`
+                            ];
+                            context.fillStyle = colors[colorIndex];
+                            context.fillRect(x*4 + Math.sin(y/30 + time) * offset, 
+                                            y*4 + Math.cos(x/30 + time) * offset, 4, 4);
+                        }
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        </script>
+    </body>
+</html>

@@ -1,0 +1,221 @@
+<html>
+    <head>
+        <style>
+            body { margin: 0; background: black; }
+            canvas { display: block; }
+        </style>
+    </head>
+    <body>
+        <canvas id="c" width="1024" height="1024"></canvas>
+        <script>
+            const canvas = document.getElementById('c');
+            const context = canvas.getContext('2d');
+            let time = 0;
+            
+            // Mouse interaction variables
+            let mouseX = canvas.width / 2;
+            let mouseY = canvas.height / 2;
+            let isClicked = false;
+            let clickEffects = [];
+            const maxClickEffects = 3;
+            
+            function drawFractal(x, y, size, depth, rotation) {
+                if (depth <= 0 || size < 1) return;
+                
+                // Calculate color based on depth and time
+                const colorIndex = (depth + Math.floor(time * 3)) % 3;
+                const colors = [
+                    `hsl(${270 + Math.sin(time + depth) * 20}, 100%, ${30 + Math.sin(time * 1.2 + depth) * 10}%)`,
+                    `hsl(${0 + Math.cos(time + depth) * 20}, 100%, ${27 + Math.cos(time * 1.2 + depth) * 10}%)`,
+                    `hsl(${290 + Math.sin(time + depth) * 20}, 100%, ${10 + Math.sin(time * 1.2 + depth) * 5}%)`
+                ];
+                
+                context.save();
+                context.translate(x, y);
+                context.rotate(rotation);
+                
+                // Draw current shape
+                const pulseSize = size * (1 + Math.sin(time * 2 + depth) * 0.1);
+                
+                // Draw a shape based on depth
+                if (depth % 3 === 0) {
+                    // Draw rectangle
+                    context.fillStyle = colors[colorIndex];
+                    context.fillRect(-pulseSize/2, -pulseSize/2, pulseSize, pulseSize);
+                } else if (depth % 3 === 1) {
+                    // Draw circle
+                    context.beginPath();
+                    context.arc(0, 0, pulseSize/2, 0, Math.PI * 2);
+                    context.fillStyle = colors[colorIndex];
+                    context.fill();
+                } else {
+                    // Draw triangle
+                    context.beginPath();
+                    context.moveTo(0, -pulseSize/2);
+                    context.lineTo(pulseSize/2, pulseSize/2);
+                    context.lineTo(-pulseSize/2, pulseSize/2);
+                    context.closePath();
+                    context.fillStyle = colors[colorIndex];
+                    context.fill();
+                }
+                
+                // Calculate new parameters for recursive calls
+                const newSize = size * 0.6;
+                const newDepth = depth - 1;
+                const angleOffset = Math.sin(time + depth) * 0.2;
+                
+                // Number of branches varies with time
+                const branches = 3 + Math.floor(Math.sin(time * 0.5) * 2);
+                
+                // Create recursive branches
+                for (let i = 0; i < branches; i++) {
+                    const angle = (i * Math.PI * 2 / branches) + time * (depth % 2 ? 1 : -1) * 0.1 + angleOffset;
+                    const distance = size * 0.8;
+                    const newX = Math.cos(angle) * distance;
+                    const newY = Math.sin(angle) * distance;
+                    const newRotation = rotation + angle * 0.5 + Math.sin(time) * 0.2;
+                    
+                    drawFractal(newX, newY, newSize, newDepth, newRotation);
+                }
+                
+                context.restore();
+            }
+            
+            // Add mouse event listeners
+            canvas.addEventListener('mousedown', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                isClicked = true;
+                
+                // Create a new click effect
+                if (clickEffects.length < maxClickEffects) {
+                    clickEffects.push({
+                        x: mouseX,
+                        y: mouseY,
+                        size: 30 + Math.random() * 20,
+                        depth: Math.floor(Math.random() * 3) + 3,
+                        rotation: Math.random() * Math.PI * 2,
+                        duration: 100 + Math.random() * 100,
+                        age: 0,
+                        type: Math.floor(Math.random() * 3) // 0: color shift, 1: size pulse, 2: rotation change
+                    });
+                }
+            });
+            
+            canvas.addEventListener('mouseup', function() {
+                isClicked = false;
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                if (isClicked) {
+                    const rect = canvas.getBoundingClientRect();
+                    mouseX = e.clientX - rect.left;
+                    mouseY = e.clientY - rect.top;
+                }
+            });
+            
+            function animate() {
+                time += 0.01;
+                context.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Process click effects
+                for (let i = clickEffects.length - 1; i >= 0; i--) {
+                    const effect = clickEffects[i];
+                    effect.age++;
+                    
+                    // Draw click effect fractal with special properties based on type
+                    if (effect.type === 0) { // Color shift effect
+                        // Temporary color shift for this fractal
+                        const colorShift = time * 10 + effect.age * 0.5;
+                        const tempDrawFractal = (x, y, size, depth, rotation) => {
+                            if (depth <= 0 || size < 1) return;
+                            
+                            // Special shifted colors
+                            const colorIndex = (depth + Math.floor(colorShift)) % 3;
+                            const colors = [
+                                `hsl(${(270 + colorShift) % 360}, 100%, ${30 + Math.sin(time * 1.2 + depth) * 10}%)`,
+                                `hsl(${(0 + colorShift) % 360}, 100%, ${27 + Math.cos(time * 1.2 + depth) * 10}%)`,
+                                `hsl(${(290 + colorShift) % 360}, 100%, ${10 + Math.sin(time * 1.2 + depth) * 5}%)`
+                            ];
+                            
+                            context.save();
+                            context.translate(x, y);
+                            context.rotate(rotation);
+                            
+                            // Draw current shape
+                            const pulseSize = size * (1 + Math.sin(time * 2 + depth) * 0.1);
+                            
+                            // Draw a shape based on depth
+                            if (depth % 3 === 0) {
+                                context.fillStyle = colors[colorIndex];
+                                context.fillRect(-pulseSize/2, -pulseSize/2, pulseSize, pulseSize);
+                            } else if (depth % 3 === 1) {
+                                context.beginPath();
+                                context.arc(0, 0, pulseSize/2, 0, Math.PI * 2);
+                                context.fillStyle = colors[colorIndex];
+                                context.fill();
+                            } else {
+                                context.beginPath();
+                                context.moveTo(0, -pulseSize/2);
+                                context.lineTo(pulseSize/2, pulseSize/2);
+                                context.lineTo(-pulseSize/2, pulseSize/2);
+                                context.closePath();
+                                context.fillStyle = colors[colorIndex];
+                                context.fill();
+                            }
+                            
+                            // Recursive calls with fewer branches
+                            const newSize = size * 0.6;
+                            const newDepth = depth - 1;
+                            const branches = 2 + Math.floor(Math.sin(time * 0.5) * 1);
+                            
+                            for (let i = 0; i < branches; i++) {
+                                const angle = (i * Math.PI * 2 / branches) + time * 0.2;
+                                const distance = size * 0.7;
+                                const newX = Math.cos(angle) * distance;
+                                const newY = Math.sin(angle) * distance;
+                                const newRotation = rotation + angle * 0.5;
+                                
+                                tempDrawFractal(newX, newY, newSize, newDepth, newRotation);
+                            }
+                            
+                            context.restore();
+                        };
+                        
+                        tempDrawFractal(effect.x, effect.y, effect.size * (1 - effect.age / effect.duration * 0.5), 
+                                        effect.depth, effect.rotation + time * 0.5);
+                    } else if (effect.type === 1) { // Size pulse effect
+                        // Draw with pulsing size
+                        const pulseMultiplier = 1 + Math.sin(effect.age * 0.1) * 0.3;
+                        drawFractal(effect.x, effect.y, effect.size * pulseMultiplier * (1 - effect.age / effect.duration * 0.5), 
+                                   effect.depth, effect.rotation + time * 0.2);
+                    } else { // Rotation change effect
+                        // Draw with accelerated rotation
+                        drawFractal(effect.x, effect.y, effect.size * (1 - effect.age / effect.duration * 0.5), 
+                                   effect.depth, effect.rotation + effect.age * 0.05);
+                    }
+                    
+                    // Remove old effects
+                    if (effect.age >= effect.duration) {
+                        clickEffects.splice(i, 1);
+                    }
+                }
+                
+                // Draw main fractal
+                const centerX = canvas.width / 2 + Math.sin(time * 0.3) * 50;
+                const centerY = canvas.height / 2 + Math.cos(time * 0.2) * 50;
+                const maxDepth = 5 + Math.floor(Math.sin(time * 0.1) * 2);
+                const baseSize = 100 + Math.sin(time * 0.5) * 20;
+                const baseRotation = time * 0.1;
+                
+                drawFractal(centerX, centerY, baseSize, maxDepth, baseRotation);
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        </script>
+    </body>
+</html>
